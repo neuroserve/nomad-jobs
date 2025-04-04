@@ -1,10 +1,12 @@
 job "memcached" { 
-   datacenters = ["dc1"]
+   datacenters = ["*"]
 
    group "group-memcached" {
 
       network {
-         port "memcached" {} 
+         port "memcached" { 
+           host_network = "overlay"
+         }
       }
 
        task "task-memcached" {
@@ -20,8 +22,11 @@ job "memcached" {
             }
 
           service {
+             tags = [ "${node.datacenter}" ] 
+             name = "memcached"
              port = "memcached"
-             provider ="nomad"
+             provider = "nomad"
+             address_mode = "auto"
 
             check {
               type = "tcp"
@@ -39,3 +44,20 @@ job "memcached" {
         }
     }
 }
+
+#in group block
+#network {
+#      port "internalservice" {
+#        host_network = "overlay"
+#        static       = "80"
+#        to           = 80
+#      }
+#}
+#and in service block:
+#service {
+#        name         = "internalservice"
+#        port         = "internalservice"
+#        provider     = "nomad"
+#        address      = "your_nebula0_ip"
+#        address_mode = "auto"
+#      }
