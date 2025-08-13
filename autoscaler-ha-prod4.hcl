@@ -83,12 +83,12 @@ apm "nomad-apm" {
 target "os-nova" {
   driver = "os-nova"
   config = {
-    auth_url    = "https://prod4.api.pco.get-cloud.io:5000/v3"
-    username    = "u500884-servergroupadm"
-    password    = "wtt+vxOXD0Q4sFv/+5pBzw=="
-    domain_name = "d500884"
-    project_id  = "305c9b89a07f46dbae9c0d073c348559"
-    region_name = "prod4"
+    auth_url    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .osauthurl }}" {{- end }}
+    username    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .osusername }}" {{- end }}
+    password    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .ospassword }}" {{- end }}
+    domain_name = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .osdomainname }}" {{- end }}
+    project_id  = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .osprojectid }}" {{- end }}
+    region_name = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod4" }} "{{ .osregion }}" {{- end }}
   }
 }
 

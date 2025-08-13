@@ -71,7 +71,7 @@ EOT
          data = <<EOH
 #high_availability {
 #  enabled        = true
-#  lock_namespace = "autoscaler"
+#  lock_namespace = "autoscalerprod1"
 #  lock_path      = "ha/lock"
 #  lock_ttl       = "30s"
 #  lock_delay     = "15s"
@@ -84,12 +84,12 @@ apm "nomad-apm" {
 target "os-nova" {
   driver = "os-nova"
   config = {
-    auth_url    = "https://prod1.api.pco.get-cloud.io:5000/v3"
-    username    = "u500884-servergroupadm"
-    password    = "heequekeefo/+o0ThohHeK3e"
-    domain_name = "d500884"
-    project_id  = "37c692d590564a4ebf77a1b9a5c95006"
-    region_name = "prod1"
+    auth_url    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .osauthurl }}" {{- end }}
+    username    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .osusername }}" {{- end }}
+    password    = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .ospassword }}" {{- end }}
+    domain_name = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .osdomainname }}" {{- end }}
+    project_id  = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .osprojectid }}" {{- end }}
+    region_name = {{- with nomadVar "nomad/jobs/autoscaler-ha-prod1" }} "{{ .osregion }}" {{- end }}
   }
 }
 
