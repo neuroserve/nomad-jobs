@@ -36,7 +36,7 @@ haste.code667.net {
         {{- range nomadService "haste"}}
         reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
 
-        tls toens.bueker@plusserver.com
+        tls hein@bloed.com
 }
 EOH
           destination = "local/Caddyfile"
@@ -70,7 +70,7 @@ EOH
          }
          driver = "docker"
          config {              
-            image = "reg.code667.net/haste/haste:2023022201"
+            image = "somereg.net/haste/haste:2023022201"
             ports = [ "hastecontainer" ]
             auth {
               username = "tbueker"
