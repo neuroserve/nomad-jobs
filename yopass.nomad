@@ -43,13 +43,13 @@ yopa.code667.net {
         {{- range nomadService "yopa" }}
         reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
 
-        tls toens.bueker@plusserver.com
+        tls hein@bloed.com
 }
 yopa.waechterrat.de {
         {{- range nomadService "yopa" }}
         reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
 
-        tls toens.bueker@plusserver.com
+        tls hein@bloed.com
 }
 EOH
           destination = "local/Caddyfile"
