@@ -1,5 +1,5 @@
 job "yopa" { 
-   datacenters = ["prod1"]
+   datacenters = ["prod1", "prod4"]
 
    group "yopa" {
     #  count = 2
@@ -12,11 +12,18 @@ job "yopa" {
     #      percent = 50
     #    }
     #  }
+      constraint {
+        operator = "distinct_hosts"
+        value = "true"
+      }
       network {
-         port "memcachedp" {} 
-         port "yopacontainer" { to = 1337 }
-         port "caddy-http" { static = "8080" }
-         port "caddy-https" { static = "8443" }
+         port "memcachedp" {}
+         port "yopacontainer" { 
+          host_network = "local"
+          to = 1337
+         }
+    #     port "caddy-http" { static = "8080" }
+    #     port "caddy-https" { static = "8443" }
       }
 
        task "caddy" {
@@ -33,7 +40,13 @@ job "yopa" {
          template {
           data = <<EOH
 yopa.code667.net {
-        {{- range nomadService "yopa"}}
+        {{- range nomadService "yopa" }}
+        reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
+
+        tls toens.bueker@plusserver.com
+}
+yopa.waechterrat.de {
+        {{- range nomadService "yopa" }}
         reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
 
         tls toens.bueker@plusserver.com
@@ -41,25 +54,6 @@ yopa.code667.net {
 EOH
           destination = "local/Caddyfile"
          }
-         service {
-             tags = [ "${node.datacenter}"]
-             name = "yopa-caddy"
-             port = "caddy-http"
-             provider ="nomad"
-
-#           check {
-#              type = "tcp"
-#              port = "caddy-http"
-#              interval = "10s"
-#              timeout = "2s"
-
-#             check_restart {
-#                limit = 3
-#                grace = "90s"
-#                ignore_warnings = "false"
-#              }
-#            }
-          }
        }
 
        task "yopacontainer" {
@@ -115,12 +109,17 @@ EOH
 pools{
     set_all = {
         {  backends = { 
-            {{- range nomadService "memcached-prod1"}}
+            {{- range nomadService "memcached-prod1" }}
               "{{ .Address }}:{{ .Port }}"{{- end}} 
             } 
         },
         {  backends = {
-            {{- range nomadService "memcached-prod4"}}
+            {{- range nomadService "memcached-prod4" }}
+              "{{ .Address }}:{{ .Port }}"{{- end}}
+           }
+        },
+        {  backends = {
+            {{- range nomadService "memcached-de-gt-2" }}
               "{{ .Address }}:{{ .Port }}"{{- end}}
            }
         },

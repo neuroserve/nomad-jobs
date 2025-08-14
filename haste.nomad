@@ -1,5 +1,5 @@
 job "haste" { 
-   datacenters = ["prod1"]
+   datacenters = ["prod1", "prod4"]
 
    group "haste" {
     #  count = 2
@@ -36,7 +36,7 @@ haste.code667.net {
         {{- range nomadService "haste"}}
         reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
 
-        tls somebody@somewhere.com
+        tls toens.bueker@plusserver.com
 }
 EOH
           destination = "local/Caddyfile"
@@ -73,8 +73,8 @@ EOH
             image = "reg.code667.net/haste/haste:2023022201"
             ports = [ "hastecontainer" ]
             auth {
-              username = "heinbloed"
-              password = "geheim"
+              username = "tbueker"
+              password = "BlaBla123"
             }
           }
           service {
@@ -117,12 +117,12 @@ EOH
 pools{
     set_all = {
         {  backends = { 
-            {{- range nomadService "memcached-prod1" }}
+            {{- range nomadService "memcached-prod1"}}
               "{{ .Address }}:{{ .Port }}"{{- end}} 
             } 
         },
         {  backends = {
-            {{- range nomadService "memcached-prod4" }}
+            {{- range nomadService "memcached-prod4"}}
               "{{ .Address }}:{{ .Port }}"{{- end}}
            }
         },
