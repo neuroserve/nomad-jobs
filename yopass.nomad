@@ -1,5 +1,5 @@
 job "yopa" { 
-   datacenters = ["prod1", "prod4"]
+   datacenters = ["prod1"]
 
    group "yopa" {
     #  count = 2

@@ -123,7 +123,7 @@ scaling "worker_pool_policy" {
       dry-run = false
 
       stop_first         = true
-      image_id           = "0e90454b-9656-44fa-90b2-2f101fbaf38f"
+      image_id           = "76c5f585-2ab9-4f76-9dae-354c425f8afa"
       flavor_name        = "SCS-2V-2-20"
       pool_name          = "nom-pool"
       name_prefix        = "nom-"
@@ -131,7 +131,7 @@ scaling "worker_pool_policy" {
       security_groups    = "default"
       availability_zones = "az1"
       tags               = "nom-pool,ubuntu-minimal"
-      server_group_id    = "4711168e-fd6b-4092-8470-79f86cfc84f9"
+      server_group_id    = "373265a7-5856-4e5c-a371-43b923c4a3d0"
       
       node_class                    = "dynamic"
       node_drain_deadline           = "1h"
