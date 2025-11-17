@@ -12,19 +12,15 @@ job "shorty" {
     #      percent = 50
     #    }
     #  }
-      constraint {
-        operator = "distinct_hosts"
-        value = "true"
-      }
       network {
-         port "kuttcontainer" { 
+         port "kuttcontainer" {
+           to           = 3000 
            host_network = "local"
          }
          port "rediscontainer" {
-           host_network = "local"
+           to           = 6379
+           host_network = "internal"
          }
-    #     port "caddy-http" { static = "8080" }
-    #     port "caddy-https" { static = "8443" }
       }
 
        task "caddy" {
@@ -52,40 +48,40 @@ EOH
        }
 
        task "kuttcontainer" {
-        env {
-          PORT = "${NOMAD_HOST_PORT_kuttcontainer}"
-          SITE_NAME = "shorty"
-          DEFAULT_DOMAIN = "shorty.code667.net"
-          DB_CLIENT = "pg"
-          DB_HOST = "primary.patroni42.service.consul"
-          DB_PORT = "5432"
-          DB_NAME = "shorty"
-          DB_USER = "shorty"
-          DB_SSL = "false"
-          DB_POOL_MIN = "0"
-          DB_POOL_MAY = "10"
-          LINK_LENGTH = "6"
-          LINK_CUSTOM_ALPHABET = "abcdefghkmnpqrstuvwxyzABCDEFGHKLMNPQRSTUVWXYZ23456789"
-          TRUST_PROXY = "true"
-          REDIS_ENABLED = "false"
-          REDIS_HOST = "${NOMAD_IP_rediscontainer}"
-          REDIS_PORT = "${NOMAD_HOST_PORT_rediscontainer}"
-          REDIS_DB = "0"
-          REDIS_PASSWORD = ""
-          DISALLOW_REGISTRATION = "true"
-          DISALLOW_ANONYMOUS_LINKS = "false"
-        } 
         template {
-          destination = "${NOMAD_SECRETS_DIR}/env.txt"
-          env         = true
-          data        = <<EOT
-JWT_SECRET  = {{ with nomadVar "nomad/jobs/shorty" }}{{ .jwtsecret }}{{ end }}
-DB_PASSWORD = {{ with nomadVar "nomad/jobs/shorty" }}{{ .dbpassword }}{{ end }}
-          EOT
-        }
+          destination = "env"
+          env = true
+          data = <<EOT
+PORT=3000
+SITE_NAME=shorty
+DEFAULT_DOMAIN=shorty.code667.net
+JWT_SECRET={{ with nomadVar "nomad/jobs/shorty" }}{{ .jwtsecret }}{{ end }}
+DB_CLIENT=pg
+DB_HOST=primary.patroni42.service.consul
+DB_PORT=5432
+DB_NAME=shorty
+DB_USER=shorty
+DB_PASSWORD={{ with nomadVar "nomad/jobs/shorty" }}{{ .dbpassword }}{{ end }}
+DB_SSL=false
+DB_POOL_MIN=0
+DB_POOL_MAX=10
+LINK_LENGTH=6
+LINK_CUSTOM_ALPHABET=abcdefghkmnpqrstuvwxyzABCDEFGHKLMNPQRSTUVWXYZ23456789
+TRUST_PROXY=true
+REDIS_ENABLED=true
+REDIS_HOST={{ env "NOMAD_IP_rediscontainer" }}
+REDIS_PORT={{ env "NOMAD_HOST_PORT_rediscontainer" }}
+REDIS_PASSWORD=
+REDIS_DB=0
+DISALLOW_REGISTRATION=true
+DISALLOW_ANONYMOUS_LINKS=false
+CUSTOM_DOMAIN_USE_HTTPS=false
+NON_USER_COOLDOWN=0
+        EOT
+        } 
         driver = "docker"
-          config {              
-            image = "kutt/kutt:main"
+          config {            
+            image = "kutt/kutt:v3.2.3"
             ports = [ "kuttcontainer" ]
           }
           service {
@@ -112,7 +108,7 @@ DB_PASSWORD = {{ with nomadVar "nomad/jobs/shorty" }}{{ .dbpassword }}{{ end }}
        task "rediscontainer" {
          driver = "docker"
          config {
-            image = "redis:7"
+            image = "docker.io/valkey/valkey:9.0-alpine"
             ports = ["rediscontainer"]
           }
           service {
