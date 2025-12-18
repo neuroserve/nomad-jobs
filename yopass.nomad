@@ -1,8 +1,8 @@
 job "yopa" { 
-   datacenters = ["prod1"]
+   datacenters = ["prod1", "prod4"]
 
    group "yopa" {
-    #  count = 2
+      count = 2
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -23,6 +23,7 @@ job "yopa" {
          }
          port "yopa" { 
            to = 1337
+           host_network="overlay"
          }
       }
 
