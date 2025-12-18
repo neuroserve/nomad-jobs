@@ -1,8 +1,8 @@
 job "haste" { 
-   datacenters = ["prod1", "prod4", "de-gt-2"]
+   datacenters = ["prod1", "prod4"]
 
    group "haste" {
-    #  count = 2
+      count = 1
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -13,60 +13,21 @@ job "haste" {
     #    }
     #  }
       network {
-         port "memcachedp" {} 
-         port "hastecontainer" { to = 7777 }
-         port "caddy-http" { static = "8080" }
-         port "caddy-https" { static = "8443" }
+         mode = "bridge"
+         port "memcachedp" {
+           to = 11211         
+         } 
+         port "haste" { 
+           to = 7777 
+           host_network="overlay"
+         }
       }
 
-       task "caddy" {
-         driver = "exec"
-         config {
-          command = "/usr/bin/caddy"
-          args = [
-            "run",
-            "--environ",
-            "--config",
-            "local/Caddyfile",
-          ]
-         }
-         template {
-          data = <<EOH
-haste.code667.net {
-        {{- range nomadService "haste"}}
-        reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
-
-        tls hein@bloed.com
-}
-EOH
-          destination = "local/Caddyfile"
-         }
-         service {
-             tags = [ "${node.datacenter}"]
-             name = "haste-caddy"
-             port = "caddy-http"
-             provider ="nomad"
-
-#           check {
-#              type = "tcp"
-#              port = "caddy-http"
-#              interval = "10s"
-#              timeout = "2s"
-
-#             check_restart {
-#                limit = 3
-#                grace = "90s"
-#                ignore_warnings = "false"
-#              }
-#            }
-          }
-       }
-
-       task "hastecontainer" {
+       task "haste" {
          env {
           STORAGE_TYPE = "memcached"
-          STORAGE_HOST = "${NOMAD_IP_memcachedp}"
-          STORAGE_PORT = "${NOMAD_PORT_memcachedp}"
+#          STORAGE_HOST = "${NOMAD_IP_memcachedp}"
+#          STORAGE_PORT = "${NOMAD_PORT_memcachedp}"
          }
 
          template {
@@ -82,17 +43,17 @@ DOCKER_PASS = {{ with nomadVar "nomad/jobs/haste" }}{{ .password }}{{ end }}
          driver = "docker"
          config {              
             image = "reg.code667.net/haste/haste:2023022201"
-            ports = [ "hastecontainer" ]
+            ports = [ "haste" ]
           }
           service {
-             tags = [ "${node.datacenter}"]
+             tags = ["traefik.enable=true"]
              name = "haste"
-             port = "hastecontainer"
+             port = "haste"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "hastecontainer"
+              port = "haste"
               interval = "10s"
               timeout = "2s"
 
@@ -105,15 +66,11 @@ DOCKER_PASS = {{ with nomadVar "nomad/jobs/haste" }}{{ .password }}{{ end }}
           }
        }
        
-       task "memcached-proxy" {
+       task "memcachedp" {
          driver = "exec"
          config {
             command = "/usr/local/bin/memcached"
             args = [
-              "-l",
-              "${NOMAD_IP_memcachedp}",
-              "-p", 
-              "${NOMAD_PORT_memcachedp}",
               "-o",
               "proxy_config=routelib,proxy_arg=local/config.lua",
             ]
@@ -156,7 +113,7 @@ routes{
 
          service {
              tags = [ "${node.datacenter}"]
-             name = "memcached-proxy"
+             name = "memcachedp"
              port = "memcachedp"
              provider ="nomad"
 
@@ -176,24 +133,3 @@ routes{
         }
     }
 }
-
-#in nomad.hcl
-#host_network "overlay" {
-#                interface = "nebula0"
-#}
-#in group block
-#network {
-#      port "internalservice" {
-#        host_network = "overlay"
-#        static       = "80"
-#        to           = 80
-#      }
-#}
-#and in service block:
-#service {
-#        name         = "internalservice"
-#        port         = "internalservice"
-#        provider     = "nomad"
-#        address      = "your_nebula0_ip"
-#        address_mode = "auto"
-#      }
