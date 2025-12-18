@@ -17,46 +17,16 @@ job "yopa" {
         value = "true"
       }
       network {
-         port "memcachedp" {}
-         port "yopacontainer" { 
-          host_network = "local"
-          to = 1337
+         mode = "bridge"
+         port "memcachedp" {
+           to = 11211
          }
-    #     port "caddy-http" { static = "8080" }
-    #     port "caddy-https" { static = "8443" }
+         port "yopa" { 
+           to = 1337
+         }
       }
 
-       task "caddy" {
-         driver = "exec"
-         config {
-          command = "/usr/bin/caddy"
-          args = [
-            "run",
-            "--environ",
-            "--config",
-            "local/Caddyfile",
-          ]
-         }
-         template {
-          data = <<EOH
-yopa.code667.net {
-        {{- range nomadService "yopa" }}
-        reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
-
-        tls hein@bloed.com
-}
-yopa.waechterrat.de {
-        {{- range nomadService "yopa" }}
-        reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
-
-        tls hein@bloed.com
-}
-EOH
-          destination = "local/Caddyfile"
-         }
-       }
-
-       task "yopacontainer" {
+       task "yopa" {
         # env {
         #  YOPASS_DATABASE = "memcached"
         #  YOPASS_MEMCACHED = "${NOMAD_ADDR_memcachedp}"
@@ -64,41 +34,37 @@ EOH
          driver = "docker"
          config {              
             image = "jhaals/yopass:11.19.1"
-            ports = [ "yopacontainer" ]
+            ports = [ "yopa" ]
             args = [
               "--memcached", "${NOMAD_ADDR_memcachedp}"
             ]
           }
           service {
-             tags = [ "${node.datacenter}"]
+             tags = ["traefik.enable=true"]
              name = "yopa"
-             port = "yopacontainer"
+             port = "yopa"
              provider ="nomad"
 
-           check {
-              type = "tcp"
-              port = "yopacontainer"
-              interval = "10s"
-              timeout = "2s"
+             check {
+                type = "tcp"
+                port = "yopa"
+                interval = "10s"
+                timeout = "2s"
 
-             check_restart {
-                limit = 3
-                grace = "90s"
-                ignore_warnings = "false"
-              }
-            }
+                check_restart {
+                   limit = 3
+                   grace = "90s"
+                   ignore_warnings = "false"
+                }
+             }
           }
        }
        
-       task "memcached-proxy" {
+       task "memcachedp" {
          driver = "exec"
          config {
             command = "/usr/local/bin/memcached"
             args = [
-              "-l",
-              "${NOMAD_IP_memcachedp}",
-              "-p", 
-              "${NOMAD_PORT_memcachedp}",
               "-o",
               "proxy_config=routelib,proxy_arg=local/config.lua",
             ]
@@ -146,7 +112,7 @@ routes{
 
          service {
              tags = [ "${node.datacenter}"]
-             name = "memcached-proxy"
+             name = "memcachedp"
              port = "memcachedp"
              provider ="nomad"
 
