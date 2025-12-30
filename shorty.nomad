@@ -1,8 +1,8 @@
 job "shorty" { 
-   datacenters = ["prod4"]
+   datacenters = ["prod4", "prod1"]
 
    group "shorty" {
-    #  count = 2
+      count = 2
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -13,48 +13,25 @@ job "shorty" {
     #    }
     #  }
       network {
-         port "kuttcontainer" {
+         mode = "bridge"
+         port "shorty" {
            to           = 3000 
-           host_network = "local"
+           host_network = "overlay"
          }
-         port "rediscontainer" {
+         port "redis" {
            to           = 6379
-           host_network = "internal"
+           host_network = "overlay"
          }
       }
 
-       task "caddy" {
-         driver = "exec"
-         config {
-          command = "/usr/bin/caddy"
-          args = [
-            "run",
-            "--environ",
-            "--config",
-            "local/Caddyfile",
-          ]
-         }
-         template {
-          data = <<EOH
-shorty.code667.net {
-        {{- range nomadService "shorty" }}
-        reverse_proxy {{ .Address }}:{{ .Port }}{{- end}} 
-
-        tls hein@bloed.com
-}
-EOH
-          destination = "local/Caddyfile"
-         }
-       }
-
-       task "kuttcontainer" {
+       task "shorty" {
         template {
           destination = "env"
           env = true
           data = <<EOT
 PORT=3000
 SITE_NAME=shorty
-DEFAULT_DOMAIN=shorty.code667.net
+DEFAULT_DOMAIN=shorty.app.tgos.xyz
 JWT_SECRET={{ with nomadVar "nomad/jobs/shorty" }}{{ .jwtsecret }}{{ end }}
 DB_CLIENT=pg
 DB_HOST=primary.patroni42.service.consul
@@ -69,8 +46,8 @@ LINK_LENGTH=6
 LINK_CUSTOM_ALPHABET=abcdefghkmnpqrstuvwxyzABCDEFGHKLMNPQRSTUVWXYZ23456789
 TRUST_PROXY=true
 REDIS_ENABLED=true
-REDIS_HOST={{ env "NOMAD_IP_rediscontainer" }}
-REDIS_PORT={{ env "NOMAD_HOST_PORT_rediscontainer" }}
+#REDIS_HOST={{ env "NOMAD_IP_redis" }}
+#REDIS_PORT={{ env "NOMAD_HOST_PORT_redis" }}
 REDIS_PASSWORD=
 REDIS_DB=0
 DISALLOW_REGISTRATION=true
@@ -82,17 +59,17 @@ NON_USER_COOLDOWN=0
         driver = "docker"
           config {            
             image = "kutt/kutt:v3.2.3"
-            ports = [ "kuttcontainer" ]
+            ports = [ "shorty" ]
           }
           service {
-             tags = [ "${node.datacenter}"]
+             tags = ["traefik.enable=true"]
              name = "shorty"
-             port = "kuttcontainer"
+             port = "shorty"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "kuttcontainer"
+              port = "shorty"
               interval = "10s"
               timeout = "2s"
 
@@ -105,21 +82,21 @@ NON_USER_COOLDOWN=0
           }
        }
        
-       task "rediscontainer" {
+       task "redis" {
          driver = "docker"
          config {
             image = "docker.io/valkey/valkey:9.0-alpine"
-            ports = ["rediscontainer"]
+            ports = ["redis"]
           }
           service {
               tags = [ "${node.datacenter}"]
-              name = "rediscontainer"
-              port = "rediscontainer"
+              name = "redis"
+              port = "redis"
               provider ="nomad"
 
             check {
                type = "tcp"
-               port = "rediscontainer"
+               port = "redis"
                interval = "10s"
                timeout = "2s"
 
@@ -133,24 +110,3 @@ NON_USER_COOLDOWN=0
         }
     }
 }
-
-#in nomad.hcl
-#host_network "overlay" {
-#                interface = "nebula0"
-#}
-#in group block
-#network {
-#      port "internalservice" {
-#        host_network = "overlay"
-#        static       = "80"
-#        to           = 80
-#      }
-#}
-#and in service block:
-#service {
-#        name         = "internalservice"
-#        port         = "internalservice"
-#        provider     = "nomad"
-#        address      = "your_nebula0_ip"
-#        address_mode = "auto"
-#      }
