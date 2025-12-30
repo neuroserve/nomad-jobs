@@ -2,7 +2,7 @@ job "yopa" {
    datacenters = ["prod1", "prod4"]
 
    group "yopa" {
-      count = 2
+      count = 1
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -18,8 +18,9 @@ job "yopa" {
       }
       network {
          mode = "bridge"
-         port "memcachedp" {
+         port "memcachedpy" {
            to = 11211
+           host_network="overlay"
          }
          port "yopa" { 
            to = 1337
@@ -37,7 +38,7 @@ job "yopa" {
             image = "jhaals/yopass:11.19.1"
             ports = [ "yopa" ]
             args = [
-              "--memcached", "${NOMAD_ADDR_memcachedp}"
+              "--memcached", "${NOMAD_ADDR_memcachedpy}"
             ]
           }
           service {
@@ -61,7 +62,7 @@ job "yopa" {
           }
        }
        
-       task "memcachedp" {
+       task "memcachedpy" {
          driver = "exec"
          config {
             command = "/usr/local/bin/memcached"
@@ -82,11 +83,6 @@ pools{
         },
         {  backends = {
             {{- range nomadService "memcached-prod4" }}
-              "{{ .Address }}:{{ .Port }}"{{- end}}
-           }
-        },
-        {  backends = {
-            {{- range nomadService "memcached-de-gt-2" }}
               "{{ .Address }}:{{ .Port }}"{{- end}}
            }
         },
@@ -113,17 +109,17 @@ routes{
 
          service {
              tags = [ "${node.datacenter}"]
-             name = "memcachedp"
-             port = "memcachedp"
+             name = "memcachedpy"
+             port = "memcachedpy"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "memcachedp"
+              port = "memcachedpy"
               interval = "10s"
               timeout = "2s"
 
-             check_restart {
+              check_restart {
                 limit = 3
                 grace = "90s"
                 ignore_warnings = "false"

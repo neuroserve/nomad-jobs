@@ -2,7 +2,7 @@ job "haste" {
    datacenters = ["prod1", "prod4"]
 
    group "haste" {
-      count = 1
+      count = 2
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -14,8 +14,9 @@ job "haste" {
     #  }
       network {
          mode = "bridge"
-         port "memcachedp" {
+         port "memcachedph" {
            to = 11211         
+           host_network="overlay"
          } 
          port "haste" { 
            to = 7777 
@@ -66,7 +67,7 @@ DOCKER_PASS = {{ with nomadVar "nomad/jobs/haste" }}{{ .password }}{{ end }}
           }
        }
        
-       task "memcachedp" {
+       task "memcachedph" {
          driver = "exec"
          config {
             command = "/usr/local/bin/memcached"
@@ -113,13 +114,13 @@ routes{
 
          service {
              tags = [ "${node.datacenter}"]
-             name = "memcachedp"
-             port = "memcachedp"
+             name = "memcachedph"
+             port = "memcachedph"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "memcachedp"
+              port = "memcachedph"
               interval = "10s"
               timeout = "2s"
 
