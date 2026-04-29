@@ -1,6 +1,12 @@
 job "yopa" { 
    datacenters = ["prod1", "prod4"]
 
+   update {
+     max_parallel = 1
+     stagger      = "1m"
+     auto_revert  = true
+   }
+
    group "yopa" {
       count = 1
     #  spread {
@@ -26,7 +32,12 @@ job "yopa" {
            to = 1337
            host_network="overlay"
          }
-      }
+
+         port "redisy" {
+           to     = 6379
+           host_network="overlay"
+         }
+       }
 
        task "yopa" {
         # env {
@@ -38,7 +49,8 @@ job "yopa" {
             image = "jhaals/yopass:11.19.1"
             ports = [ "yopa" ]
             args = [
-              "--memcached", "${NOMAD_ADDR_memcachedpy}"
+              "--database", "redis",
+#             "--redis", "redis://${NOMAD_ADDR_redisy}/"
             ]
           }
           service {
@@ -62,60 +74,32 @@ job "yopa" {
           }
        }
        
-       task "memcachedpy" {
-         driver = "exec"
+       task "redisy" {
+         driver = "docker"
          config {
-            command = "/usr/local/bin/memcached"
+            image = "redis:7-alpine"
+            ports = [ "redisy" ]
             args = [
-              "-o",
-              "proxy_config=routelib,proxy_arg=local/config.lua",
+              "redis-server",
+              "--maxmemory", "200mb",
+              "--maxmemory-policy", "allkeys-lru",
+              "--appendonly", "yes",
             ]
-          }
-
-         template {
-            data = <<EOH
-pools{
-    set_all = {
-        {  backends = { 
-            {{- range nomadService "memcached-prod1" }}
-              "{{ .Address }}:{{ .Port }}"{{- end}} 
-            } 
-        },
-        {  backends = {
-            {{- range nomadService "memcached-prod4" }}
-              "{{ .Address }}:{{ .Port }}"{{- end}}
-           }
-        },
-    }
-}
-routes{
-    cmap = {
-        get = route_failover{
-            children = "set_all",
-            stats = true,
-            miss = true,
-            shuffle = true,
-            failover_count = 2
-        },
-    },
-    default = route_allsync{ 
-            children = "set_all",
-    },
-}
-            EOH
-            
-            destination = "local/config.lua"
-         } 
+         }
+         resources {
+           cpu = 500
+           memory = 256
+         }
 
          service {
-             tags = [ "${node.datacenter}"]
-             name = "memcachedpy"
-             port = "memcachedpy"
+             tags = [ "${node.datacenter}", "cache", "db"]
+             name = "redisy"
+             port = "redisy"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "memcachedpy"
+              port = "redisy"
               interval = "10s"
               timeout = "2s"
 
@@ -129,6 +113,7 @@ routes{
         }
     }
 }
+
 
 #in nomad.hcl
 #host_network "overlay" {
