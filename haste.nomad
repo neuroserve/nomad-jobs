@@ -1,8 +1,15 @@
 job "haste" { 
    datacenters = ["prod1", "prod4"]
 
+   update {
+     max_parallel = 1
+     stagger      = "1m"
+     auto_revert  = true
+   }
+
+
    group "haste" {
-      count = 2
+      count = 1
     #  spread {
     #    attribute = "${node.datacenter}"
     #    target "prod1" {
@@ -14,21 +21,22 @@ job "haste" {
     #  }
       network {
          mode = "bridge"
-         port "memcachedph" {
-           to = 11211         
-           host_network="overlay"
-         } 
          port "haste" { 
            to = 7777 
+           host_network="overlay"
+         }
+         port "redish" {
+           to     = 6379
            host_network="overlay"
          }
       }
 
        task "haste" {
          env {
-          STORAGE_TYPE = "memcached"
-#          STORAGE_HOST = "${NOMAD_IP_memcachedp}"
-#          STORAGE_PORT = "${NOMAD_PORT_memcachedp}"
+          STORAGE_TYPE = "redis"
+          STORAGE_HOST = "localhost"
+          STORAGE_PORT = 6379 
+          # STORAGE_PASSWORD=grzlbrmpf
          }
 
          template {
@@ -66,65 +74,37 @@ DOCKER_PASS = {{ with nomadVar "nomad/jobs/haste" }}{{ .password }}{{ end }}
             }
           }
        }
-       
-       task "memcachedph" {
-         driver = "exec"
-         config {
-            command = "/usr/local/bin/memcached"
-            args = [
-              "-o",
-              "proxy_config=routelib,proxy_arg=local/config.lua",
-            ]
-          }
 
-         template {
-            data = <<EOH
-pools{
-    set_all = {
-        {  backends = { 
-            {{- range nomadService "memcached-prod1"}}
-              "{{ .Address }}:{{ .Port }}"{{- end}} 
-            } 
-        },
-        {  backends = {
-            {{- range nomadService "memcached-prod4"}}
-              "{{ .Address }}:{{ .Port }}"{{- end}}
-           }
-        },
-    }
-}
-routes{
-    cmap = {
-        get = route_failover{
-            children = "set_all",
-            stats = true,
-            miss = true,
-            shuffle = true,
-            failover_count = 2
-        },
-    },
-    default = route_allsync{ 
-            children = "set_all",
-    },
-}
-            EOH
-            
-            destination = "local/config.lua"
-         } 
+       task "redish" {
+         driver = "docker"
+         config {
+            image = "redis:7-alpine"
+            ports = [ "redish" ]
+            args = [
+              "redis-server",
+              "--maxmemory", "200mb",
+              "--maxmemory-policy", "allkeys-lru",
+              "--appendonly", "yes",
+            ]
+         }
+         resources {
+           cpu = 500
+           memory = 256
+         }
 
          service {
-             tags = [ "${node.datacenter}"]
-             name = "memcachedph"
-             port = "memcachedph"
+             tags = [ "${node.datacenter}", "cache", "db"]
+             name = "redish"
+             port = "redish"
              provider ="nomad"
 
            check {
               type = "tcp"
-              port = "memcachedph"
+              port = "redish"
               interval = "10s"
               timeout = "2s"
 
-             check_restart {
+              check_restart {
                 limit = 3
                 grace = "90s"
                 ignore_warnings = "false"
@@ -134,3 +114,8 @@ routes{
         }
     }
 }
+
+
+
+
+
