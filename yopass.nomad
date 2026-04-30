@@ -24,15 +24,10 @@ job "yopa" {
       }
       network {
          mode = "bridge"
-         port "memcachedpy" {
-           to = 11211
-           host_network="overlay"
-         }
          port "yopa" { 
            to = 1337
            host_network="overlay"
          }
-
          port "redisy" {
            to     = 6379
            host_network="overlay"
